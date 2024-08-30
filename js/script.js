@@ -1,5 +1,15 @@
 const global = {
   currentPage: window.location.pathname,
+  search: {
+    term: "",
+    type: "",
+    pagitaion: 1,
+    totalPages: 1,
+  },
+  api: {
+    apiKey: "c9293e4ce5fe1fce429e0527afea0e25",
+    apiURL: "https://api.themoviedb.org/3/",
+  },
 };
 
 const highlightActiveLink = () => {
@@ -208,6 +218,21 @@ const displayShowDetails = async () => {
     .insertAdjacentHTML("afterbegin", showDetailsDiv);
 };
 
+const search = async () => {
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+
+  global.search.type = urlParams.get("type");
+  global.search.term = urlParams.get("search-term");
+
+  if ((global.search.term !== "") & (global.search.term !== null)) {
+    const results = await searchAPIData();
+    console.log(results);
+  } else {
+    showAlert("Please search a term");
+  }
+};
+
 const displayBackgroundImage = (type, backgroundPath) => {
   const overlayDiv = document.createElement("div");
   overlayDiv.style.backgroundImage = `url(https://image.tmdb.org/t/p/original${backgroundPath})`;
@@ -279,12 +304,28 @@ const initSwiper = () => {
 };
 
 const fetchAPIData = async (endpoint) => {
-  const API_KEY = "c9293e4ce5fe1fce429e0527afea0e25";
-  const API_URL = "https://api.themoviedb.org/3/";
+  const API_KEY = global.api.apiKey;
+  const API_URL = global.api.apiURL;
 
   showSpinner();
 
   const response = await fetch(`${API_URL}${endpoint}?api_key=${API_KEY}`);
+  const data = await response.json();
+
+  removeSpinner();
+
+  return data;
+};
+
+const searchAPIData = async () => {
+  const API_KEY = global.api.apiKey;
+  const API_URL = global.api.apiURL;
+
+  showSpinner();
+
+  const response = await fetch(
+    `${API_URL}search/${global.search.type}?api_key=${API_KEY}&query=${global.search.term}`
+  );
   const data = await response.json();
 
   removeSpinner();
@@ -298,6 +339,15 @@ const showSpinner = () => {
 
 const removeSpinner = () => {
   document.querySelector(".spinner").classList.remove("show");
+};
+
+const showAlert = (message, className) => {
+  const alertEl = document.createElement("div");
+  alertEl.classList.add("alert", "className");
+  alertEl.appendChild(document.createTextNode(message));
+  document.querySelector("#alert").appendChild(alertEl);
+
+  setTimeout(() => alertEl.remove(), 3000);
 };
 
 const addCommasToNumber = (number) => {
@@ -321,7 +371,7 @@ const init = () => {
       displayShowDetails();
       break;
     case "/search.html":
-      console.log("Search");
+      search();
       break;
   }
   highlightActiveLink();
