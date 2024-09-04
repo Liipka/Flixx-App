@@ -3,8 +3,9 @@ const global = {
   search: {
     term: "",
     type: "",
-    pagitaion: 1,
+    page: 1,
     totalPages: 1,
+    totalResults: 0,
   },
   api: {
     apiKey: "c9293e4ce5fe1fce429e0527afea0e25",
@@ -226,11 +227,105 @@ const search = async () => {
   global.search.term = urlParams.get("search-term");
 
   if ((global.search.term !== "") & (global.search.term !== null)) {
-    const results = await searchAPIData();
-    console.log(results);
+    const { results, total_pages, page, total_results } = await searchAPIData();
+
+    global.search.page = page;
+    global.search.totalPages = total_pages;
+    global.search.totalResults = total_results;
+
+    if (results.length === 0) {
+      showAlert("No results found");
+      return;
+    }
+
+    displaySearchResults(results);
+    document.querySelector("#search-term").value = "";
   } else {
     showAlert("Please search a term");
   }
+};
+
+const displaySearchResults = (results) => {
+  const searchResultsGird = document.querySelector("#search-results");
+
+  document.querySelector("#search-results").innerHTML = "";
+  results.forEach((result) => {
+    const card = `
+            <div class="card">
+              <a href="${global.search.type}-details.html?id=${result.id}">
+                <img
+                  src=${
+                    result.poster_path
+                      ? `https://image.tmdb.org/t/p/w500/${result.poster_path}`
+                      : "images/no-image.jpg"
+                  }
+                  class="card-img-top"
+                  alt='${
+                    global.search.type === "movie" ? result.title : result.name
+                  }'
+                />
+              </a>
+              <div class="card-body">
+                <h5 class="card-title">${
+                  global.search.type === "movie" ? result.title : result.name
+                }</h5>
+                <p class="card-text">
+                  <small class="text-muted">Release: ${
+                    global.search.type === "movie"
+                      ? result.release_date
+                      : result.first_air_date
+                  }</small>
+                </p>
+              </div>
+            </div>
+        `;
+
+    document.querySelector("#search-results-heading").innerHTML = `
+    <h2>${results.length} of ${global.search.totalResults} results for "${global.search.term}"</h2>
+    `;
+
+    searchResultsGird.insertAdjacentHTML("afterbegin", card);
+  });
+  document.querySelector("#pagination").innerHTML = "";
+  displayPagination();
+};
+
+const displayPagination = () => {
+  const paginationDiv = `
+    <div class="pagination">
+        <button class="btn btn-primary" id="prev">Prev</button>
+        <button class="btn btn-primary" id="next">Next</button>
+        <div class="page-counter">Page ${global.search.page} of ${global.search.totalPages}</div>
+    </div>
+    `;
+
+  document
+    .querySelector("#pagination")
+    .insertAdjacentHTML("afterbegin", paginationDiv);
+
+  if (global.search.page === 1 && global.search.totalPages > 1) {
+    document.querySelector("#prev").style.display = "none";
+  } else if (
+    global.search.page === global.search.totalPages &&
+    global.search.totalPages > 1
+  ) {
+    document.querySelector("#next").style.display = "none";
+  } else if (global.search.page === 1 && global.search.totalPages === 1) {
+    document.querySelector("#prev").style.display = "none";
+    document.querySelector("#next").style.display = "none";
+  }
+
+  document.querySelector("#next").addEventListener("click", async () => {
+    global.search.page++;
+    const { results, total_pages } = await searchAPIData();
+    displaySearchResults(results);
+  });
+
+  document.querySelector("#prev").addEventListener("click", async () => {
+    global.search.page--;
+    const { results, total_pages } = await searchAPIData();
+    displaySearchResults(results);
+  });
 };
 
 const displayBackgroundImage = (type, backgroundPath) => {
@@ -324,7 +419,7 @@ const searchAPIData = async () => {
   showSpinner();
 
   const response = await fetch(
-    `${API_URL}search/${global.search.type}?api_key=${API_KEY}&query=${global.search.term}`
+    `${API_URL}search/${global.search.type}?api_key=${API_KEY}&query=${global.search.term}&page=${global.search.page}`
   );
   const data = await response.json();
 
@@ -341,7 +436,7 @@ const removeSpinner = () => {
   document.querySelector(".spinner").classList.remove("show");
 };
 
-const showAlert = (message, className) => {
+const showAlert = (message, className = "error") => {
   const alertEl = document.createElement("div");
   alertEl.classList.add("alert", "className");
   alertEl.appendChild(document.createTextNode(message));
